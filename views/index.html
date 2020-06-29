@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style type="text/css">
+        .talk_con {
+            width: 1000px;
+            height: 800px;
+            border: 1px solid #666;
+            margin: 50px auto 0;
+            background: #f9f9f9;
+        }
+
+        .talk_show {
+            width: 980px;
+            height: 720px;
+            border: 1px solid #666;
+            background: #fff;
+            margin: 10px auto 0;
+            overflow: auto;
+        }
+
+        .talk_input {
+            width: 980px;
+            margin: 10px auto 0;
+        }
+
+        .whotalk {
+            width: 80px;
+            height: 30px;
+            float: left;
+            outline: none;
+        }
+
+        .talk_word {
+            width: 910px;
+            height: 46px;
+            padding: 0px;
+            float: left;
+            outline: none;
+            text-indent: 10px;
+        }
+
+        .talk_sub {
+            width: 56px;
+            height: 50px;
+            float: left;
+            margin-left: 10px;
+        }
+
+        .atalk {
+            margin: 10px;
+        }
+
+        .atalk span {
+            display: inline-block;
+            background: #0181cc;
+            border-radius: 10px;
+            color: #fff;
+            padding: 5px 10px;
+        }
+
+        .btalk {
+            margin: 10px;
+            text-align: right;
+        }
+
+        .btalk span {
+            display: inline-block;
+            background: #ef8201;
+            border-radius: 10px;
+            color: #fff;
+            padding: 5px 10px;
+        }
+
+        .usernameForm {
+            width: 980px;
+            height: 720px;
+            border: 1px solid #666;
+            background: rgba(77, 4, 46, 0.726);
+            margin: 10px auto 0;
+            overflow: auto;
+            text-align: center;
+        }
+
+        .usernameForm .title {
+            text-align: center;
+            margin-top: 300px;
+            color: #fff;
+        }
+
+        .usernameInput {
+            width: 810px;
+            height: 46px;
+            padding: 0px;
+            float: left;
+            outline: none;
+            margin-left: 50px;
+            text-indent: 10px;
+        }
+
+        #btn {
+            width: 56px;
+            height: 50px;
+            float: left;
+            margin-left: 10px;
+            background-color: #000;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="text-align: center;">
+        <h1>黑马聊天室</h1>
+    </div>
+    <div class="talk_con" id="talk_con">
+        <div class="talk_show" id="words">
+            <div class="atalk"><span id="asay">我们开始聊天吧!</span></div>
+            <!-- <div class="btalk"><span id="bsay">B说：还没呢，你呢？</span></div> -->
+        </div>
+        <form action="" class="talk_input">
+            <input type="text" class="talk_word" id="talkwords">
+            <input type="button" value="发送" class="talk_sub" id="talksub">
+        </form>
+    </div>
+    <div class="usernameForm" id="usernameForm">
+        <h1 class="title">What's your name?</h1>
+        <input id="usernameInput" class="usernameInput" type="text" maxlength="14" placeholder="请输入你的名字">
+        <button id="btn">确定</button>
+    </div>
+</body>
+<script>
+    $(function () {
+        // 从local拿name,如果没有就显示姓名输入框,隐藏其他
+        var username = localStorage.getItem('username')
+        // console.log(username)
+        if (!username) {
+            $('#talk_con').hide()
+            $('#btn').click(function () {
+                var newUser = $('#usernameInput').val()
+                if (newUser) {
+                    localStorage.setItem('username', newUser)
+                } else {
+                    alert('用户名不能为空!!!')
+                    return
+                }
+                // 再获取值
+                username = localStorage.getItem('username')
+                if (username) {
+                    $('#usernameForm').hide()
+                    $('#talk_con').show()
+                    main()
+                }
+            })
+        } else {
+            $('#usernameForm').hide()
+            main()
+        }
+
+        // 主函数
+        function main() {
+            var socket = io();
+            // 正在输入功能
+            $('#talksub').onchange = function () {
+                // 把消息发给服务器
+                socket.emit('userInput', {
+                    user: username,
+                    msg: true
+                });
+            };
+            // 回车发送
+            $('form').submit(function (e) {
+                e.preventDefault(); // prevents page reloading
+                // 把消息发给服务器
+                socket.emit('chat message', {
+                    user: username,
+                    msg: $('#talkwords').val()
+                });
+                // 用户消息
+                var myStr = "";
+                myStr = '<div class="btalk"><span>' + username + ': ' + $('#talkwords').val() +
+                    '</span></div>';
+                // 把消息添加到公屏上
+                $('#words').append(myStr)
+                // 清空输入框
+                $('#talkwords').val('');
+                return false;
+            });
+            // 按钮发送
+            $('#talksub').click(function () {
+                // 把消息发给服务器
+                socket.emit('chat message', {
+                    user: username,
+                    msg: $('#talkwords').val()
+                });
+                // 用户消息
+                var myStr = "";
+                myStr = '<div class="btalk"><span>' + username + ': ' + $('#talkwords').val() +
+                    '</span></div>';
+                // 把消息添加到公屏上
+                $('#words').append(myStr)
+                // 清空输入框
+                $('#talkwords').val('');
+            })
+            // 接收服务器广播的信息
+            socket.on('chat message', function (backData) {
+                // console.log(backData);
+                // $('#messages').append($('<div class="atalk"><span id="asay">').text(backData.message));
+                // 其他人消息
+                var otherStr = "";
+                otherStr = '<div class="atalk"><span>' + backData.user + ': ' + backData.message +
+                    '</span></div>';
+                $('#words').append(otherStr)
+            });
+        }
+
+
+    });
+</script>
+
+
+</html>
